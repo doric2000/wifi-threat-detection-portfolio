@@ -1,0 +1,13 @@
+# WiFi Analyzer - Project Requirements
+# Python 3.10+ required (uses type hints with | operator)
+
+# Web framework & async support
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# Kismet API client (custom implementation via requests REST API)
+requests>=2.31.0
+
+# Optional: For email alerts (if enabled in config)
+# Already in Python standard library (smtplib, email.mime)

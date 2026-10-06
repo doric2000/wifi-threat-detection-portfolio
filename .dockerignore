@@ -1,0 +1,13 @@
+# Keep the analyzer build context small and out of the image — persistent data
+# lives in the named docker volume, not in the image.
+**/__pycache__/
+**/*.pyc
+**/*.kismet
+**/*.kismet-journal
+app/analyzer.db
+app/analyzer.db-shm
+app/analyzer.db-wal
+app/logs/
+app/alerts/
+.git/
+.mypy_cache/

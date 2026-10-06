@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WiFi Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Light "CyberCase" theme: remap the `slate` scale to its inverse so the
+    // existing dark utility classes render light automatically, and add the
+    // CyberCase accent blue as `brand`.
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#2F80ED', 600: '#1f6fe0' },
+            slate: {
+              50:  '#020617', 100: '#0f172a', 200: '#1e293b', 300: '#334155',
+              400: '#475569', 500: '#64748b', 600: '#94a3b8', 700: '#cbd5e1',
+              800: '#e2e8f0', 900: '#f1f5f9', 950: '#f8fafc',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="bg-white min-h-screen">
+
+  <main class="px-6 py-5">
+
+    <!-- DEVICES -->
+    <section id="tab-devices" class="tab-panel">
+      <div class="page-head">
+        <h1 class="page-title">Devices</h1>
+        <span class="status-dot" title="engine status"></span>
+      </div>
+      <div class="mb-3 flex gap-2 text-xs items-center">
+        <span class="text-slate-500">Filter:</span>
+        <button class="filter-btn" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="redzone">Red Zone</button>
+        <button class="filter-btn" data-filter="ap">APs</button>
+        <button class="filter-btn" data-filter="unknown">Unknown</button>
+        <input id="search" type="text" placeholder="search MAC / SSID" class="field ml-auto w-64" />
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="text-left px-3 py-2">Status</th>
+              <th class="text-left px-3 py-2">MAC</th>
+              <th class="text-left px-3 py-2">Class</th>
+              <th class="text-left px-3 py-2">Device Type</th>
+              <th class="text-right px-3 py-2">RSSI</th>
+              <th class="text-left px-3 py-2">Vendor</th>
+              <th class="text-left px-3 py-2">Probed / Advertised</th>
+              <th class="text-right px-3 py-2">In Zone</th>
+              <th class="text-right px-3 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="device-tbody"></tbody>
+        </table>
+        <div id="empty-devices" class="hidden p-8 text-center text-slate-500 text-sm">No devices yet — waiting for the engine.</div>
+      </div>
+    </section>
+
+    <!-- SUSPECTS -->
+    <section id="tab-suspects" class="tab-panel hidden">
+      <div class="page-head">
+        <h1 class="page-title">Suspects</h1>
+        <span class="status-dot" title="engine status"></span>
+      </div>
+      <div class="mb-3 text-xs text-slate-500">
+        Live view — every non-whitelisted device currently in the red zone, before the alert fires. Use this to catch visitors in real time.
+      </div>
+      <div class="mb-3 flex flex-wrap gap-2 items-center text-xs">
+        <label class="flex items-center gap-1 cursor-pointer" title="Hides per-MAC fingerprints (rotation noise) UNLESS the signal is strong (> -42 dBm) or the device has been here 30+ seconds. Strong/persistent rotation devices are always shown.">
+          <input type="checkbox" id="filter-stable" checked />
+          <span>Smart hide of MAC rotations</span>
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer ml-3">
+          <input type="checkbox" id="filter-identified" checked />
+          <span>Need probes or 30s+ presence</span>
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer ml-3">
+          <span>RSSI ≥</span>
+          <select id="filter-rssi" class="field">
+            <option value="-50">-50 dBm</option>
+            <option value="-45" selected>-45 dBm (closer)</option>
+            <option value="-40">-40 dBm (very close)</option>
+            <option value="-35">-35 dBm (right next to)</option>
+          </select>
+        </label>
+        <span id="suspects-summary" class="text-slate-500 ml-auto"></span>
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full text-sm">
+          <thead>
+            <tr>
+              <th class="text-left px-3 py-2">MAC (+rotations)</th>
+              <th class="text-left px-3 py-2">Device Type</th>
+              <th class="text-left px-3 py-2">Associated To</th>
+              <th class="text-right px-3 py-2">RSSI</th>
+              <th class="text-right px-3 py-2">In Zone</th>
+              <th class="text-left px-3 py-2">Probed SSIDs</th>
+              <th class="text-right px-3 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="suspects-tbody"></tbody>
+        </table>
+        <div id="empty-suspects" class="hidden p-8 text-center text-slate-500 text-sm">No suspects in the red zone right now.</div>
+      </div>
+    </section>
+
+    <!-- ALERTS -->
+    <section id="tab-alerts" class="tab-panel hidden">
+      <div class="page-head">
+        <h1 class="page-title">Alerts <span id="alerts-count" class="count"></span></h1>
+        <span class="status-dot" title="engine status"></span>
+      </div>
+      <div id="alert-list" class="space-y-2"></div>
+      <div id="empty-alerts" class="hidden p-8 text-center text-slate-500 text-sm">No alerts yet.</div>
+    </section>
+
+    <!-- WHITELIST -->
+    <section id="tab-whitelist" class="tab-panel hidden space-y-6">
+      <div class="page-head">
+        <h1 class="page-title">Whitelist</h1>
+        <span class="status-dot" title="engine status"></span>
+      </div>
+      <div>
+        <h2 class="section-title">Employee Devices <span id="emp-count" class="text-slate-500 text-sm">(0)</span></h2>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="text-left px-3 py-2">Fingerprint</th>
+                <th class="text-left px-3 py-2">Known MACs</th>
+                <th class="text-right px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody id="employee-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h2 class="section-title">Known APs <span id="infra-count" class="text-slate-500 text-sm">(0)</span></h2>
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="text-left px-3 py-2">MAC</th>
+                <th class="text-left px-3 py-2">Label</th>
+                <th class="text-left px-3 py-2">SSIDs</th>
+                <th class="text-left px-3 py-2">Channel</th>
+                <th class="text-right px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody id="infra-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h2 class="section-title">Office SSIDs</h2>
+        <div id="ssid-list" class="flex flex-wrap gap-2"></div>
+      </div>
+    </section>
+
+    <!-- SETUP -->
+    <section id="tab-setup" class="tab-panel hidden space-y-6">
+      <div class="page-head">
+        <h1 class="page-title">Setup</h1>
+        <span class="status-dot" title="engine status"></span>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Step 1 — Pick the Office APs</h2>
+        <p class="text-xs text-slate-500 mb-3">
+          Select all access points that belong to your office network. Their channel
+          and hardware signature will be saved so the engine can detect MAC-spoofing
+          (Evil Twin or cloned router).
+        </p>
+        <div class="flex items-center gap-2 mb-3">
+          <button id="btn-reload-aps" class="btn btn-muted btn-sm">↻ Reload visible APs</button>
+          <button id="btn-mark-safe"  class="btn btn-primary btn-sm">✓ Mark selected as Known APs</button>
+          <span id="setup-ap-count" class="text-xs text-slate-500 ml-2"></span>
+        </div>
+        <div class="overflow-x-auto rounded border border-slate-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="px-3 py-2"><input type="checkbox" id="ap-select-all" /></th>
+                <th class="text-left px-3 py-2">MAC</th>
+                <th class="text-left px-3 py-2">SSIDs</th>
+                <th class="text-left px-3 py-2">Channel</th>
+                <th class="text-left px-3 py-2">Vendor</th>
+                <th class="text-right px-3 py-2">RSSI</th>
+                <th class="text-left px-3 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="setup-ap-tbody"></tbody>
+          </table>
+          <div id="setup-empty" class="hidden p-8 text-center text-slate-500 text-sm">No APs seen yet — the engine needs a cycle.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Detection Tuning</h2>
+        <p class="text-xs text-slate-500 mb-3">
+          Adjust how aggressively the engine flags devices. Changes take effect
+          on the next 10-second cycle — no restart needed.
+        </p>
+
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <label class="text-xs text-slate-500">Red-zone RSSI threshold (dBm)</label>
+            <div class="flex items-center gap-2">
+              <input id="set-rssi" type="number" min="-90" max="-10" step="1" class="field w-24" />
+              <span class="text-xs text-slate-500">stronger than this = "in office"</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-500">Hysteresis exit offset (dB)</label>
+            <div class="flex items-center gap-2">
+              <input id="set-hysteresis" type="number" min="0" max="20" step="1" class="field w-24" />
+              <span class="text-xs text-slate-500">exit zone at enter - N dB (anti-flap)</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-500">Alert timer (seconds)</label>
+            <div class="flex items-center gap-2">
+              <input id="set-timer" type="number" min="10" max="600" step="5" class="field w-24" />
+              <span class="text-xs text-slate-500">how long an unknown must linger</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-500">Alert cooldown (seconds)</label>
+            <div class="flex items-center gap-2">
+              <input id="set-cooldown" type="number" min="0" max="86400" step="30" class="field w-24" />
+              <span class="text-xs text-slate-500">re-alert window per device</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="flex items-center gap-2 text-xs cursor-pointer">
+              <input id="set-dynamic" type="checkbox" />
+              <span>Dynamic threshold (relative to office AP)</span>
+            </label>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs text-slate-500">offset</span>
+              <input id="set-offset" type="number" min="5" max="40" step="1" class="field w-20" />
+              <span class="text-xs text-slate-500">dB below office AP baseline</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="text-xs text-slate-500 mb-1">Which alerts to fire</div>
+          <div class="flex flex-wrap gap-3 text-xs">
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" class="alert-toggle" data-type="UNKNOWN_CLIENT" />
+              <span>UNKNOWN_CLIENT (stranger lingering)</span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" class="alert-toggle" data-type="ROGUE_AP" />
+              <span>ROGUE_AP (unknown beacon)</span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" class="alert-toggle" data-type="EVIL_TWIN" />
+              <span>EVIL_TWIN (impersonating office SSID)</span>
+            </label>
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" class="alert-toggle" data-type="SPOOFED_AP" />
+              <span>SPOOFED_AP (MAC clone of known AP)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-2 items-center">
+          <button id="btn-save-settings" class="btn btn-primary btn-sm">💾 Save settings</button>
+          <button id="btn-site-survey"   class="btn btn-muted btn-sm">📡 Run site survey</button>
+          <button id="btn-test-alert"    class="btn btn-muted btn-sm">🚨 Fire test alert</button>
+          <span id="settings-status" class="text-xs text-slate-500 ml-2"></span>
+        </div>
+
+        <div id="survey-result" class="mt-3 text-xs text-gray-700"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Ignored Alerts</h2>
+        <p class="text-xs text-slate-500 mb-3">
+          Permanent suppression list. Click 🚫 on any alert card to add it here.
+          Useful when you legitimately have two APs broadcasting the same SSID
+          (would otherwise look like EVIL_TWIN), or a known guest device.
+        </p>
+
+        <div class="mb-3 flex flex-wrap gap-2 items-end">
+          <div>
+            <label class="text-xs text-slate-500">Alert type</label>
+            <select id="ig-type" class="field text-xs">
+              <option value="UNKNOWN_CLIENT">UNKNOWN_CLIENT</option>
+              <option value="ROGUE_AP">ROGUE_AP</option>
+              <option value="EVIL_TWIN">EVIL_TWIN</option>
+              <option value="SPOOFED_AP">SPOOFED_AP</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">MAC (optional)</label>
+            <input id="ig-mac" type="text" placeholder="AA:BB:CC:DD:EE:FF" class="field text-xs font-mono w-44" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">Fingerprint (optional)</label>
+            <input id="ig-fp" type="text" placeholder="a3f9c2b1..." class="field text-xs font-mono w-40" />
+          </div>
+          <div class="flex-1 min-w-[180px]">
+            <label class="text-xs text-slate-500">Reason</label>
+            <input id="ig-reason" type="text" placeholder="why ignored" class="field text-xs w-full" />
+          </div>
+          <button id="btn-add-ignore" class="btn btn-muted btn-sm">+ Add rule</button>
+        </div>
+
+        <div class="overflow-x-auto rounded border border-slate-200">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="text-left px-3 py-2">Alert Type</th>
+                <th class="text-left px-3 py-2">MAC</th>
+                <th class="text-left px-3 py-2">Fingerprint</th>
+                <th class="text-left px-3 py-2">Reason</th>
+                <th class="text-left px-3 py-2">Added</th>
+                <th class="text-right px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody id="ignores-tbody"></tbody>
+          </table>
+          <div id="empty-ignores" class="hidden p-6 text-center text-slate-500 text-xs">No ignore rules yet.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Step 2 — Rescan Connected Devices</h2>
+        <p class="text-xs text-slate-500 mb-3">
+          Once you've marked the office APs above, this asks Kismet which clients
+          are currently associated with them and whitelists each one as an employee
+          device. Re-run this any time new staff join the network.
+        </p>
+        <button id="btn-rescan" class="btn btn-primary btn-sm">⟳ Rescan & whitelist connected clients</button>
+        <div id="rescan-result" class="mt-3 text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Monitor / Follow modal — opened from any alert / suspect row -->
+  <div id="monitor-modal" class="fixed inset-0 bg-black/40 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white border border-slate-200 rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <h3 class="font-bold">Monitor Device</h3>
+        <button id="monitor-close" class="text-gray-500 hover:text-gray-900 text-xl leading-none">×</button>
+      </div>
+      <div id="monitor-body" class="p-4 text-sm space-y-3"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-4 right-4 hidden px-4 py-2 rounded shadow-lg text-sm border"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

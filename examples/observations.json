@@ -1,0 +1,19 @@
+{
+  "synthetic": true,
+  "note": "Illustrative observations, not an API replay fixture or benchmark.",
+  "devices": [
+    {
+      "mac": "02:00:00:00:00:01",
+      "ssid": "Demo-Lab",
+      "rssi": -42,
+      "status": "known"
+    },
+    {
+      "mac": "02:00:00:00:00:02",
+      "ssid": "Demo-Guest",
+      "rssi": -48,
+      "status": "review",
+      "seconds_present": 75
+    }
+  ]
+}

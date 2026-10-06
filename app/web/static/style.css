@@ -1,0 +1,96 @@
+/* CyberCase-style light theme for the WiFi Analyzer (embedded as an iframe). */
+
+:root {
+  --brand: #2F80ED;
+  --brand-600: #1f6fe0;
+  --brand-tint: #eaf2fe;
+  --ink: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+}
+
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); }
+
+/* Page header: bold black title + black underline (CyberCase "system" pattern) */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid #111; padding-bottom: .5rem; margin-bottom: 1.1rem;
+}
+.page-title { font-size: 1.3rem; font-weight: 700; color: #111; letter-spacing: -.01em; }
+.page-title .count { color: var(--muted); font-weight: 600; font-size: .95rem; }
+.section-title { font-size: 1rem; font-weight: 600; color: #111; margin-bottom: .5rem; }
+
+/* live status dot */
+.status-dot {
+  width: 10px; height: 10px; border-radius: 9999px; background: #cbd5e1;
+  box-shadow: 0 0 0 3px rgba(203, 213, 225, .25); flex: none;
+}
+.status-dot[data-live="1"] { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .2); }
+
+/* cards / panels */
+.card { background: #fff; border: 1px solid var(--border); border-radius: .6rem; padding: 1rem; }
+
+/* tables */
+table thead th {
+  background: #f8fafc; color: var(--muted);
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr { border-top: 1px solid #eef2f7; }
+tbody tr:hover { background: #f8fafc; }
+.row-alert   { background: #fef2f2; }
+.row-redzone { background: #fffbeb; }
+.row-safe    { background: #f0fdf4; }
+.row-alert:hover   { background: #fde4e4; }
+.row-redzone:hover { background: #fef3c7; }
+.row-safe:hover    { background: #dcfce7; }
+
+/* buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  border: 1px solid transparent; border-radius: .4rem;
+  padding: .45rem .8rem; font-size: .85rem; font-weight: 500; line-height: 1;
+  cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s;
+}
+.btn-sm { padding: .3rem .55rem; font-size: .72rem; }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-600); }
+.btn-muted { background: #6b7280; color: #fff; }
+.btn-muted:hover { background: #4b5563; }
+.btn-danger { background: #dc2626; color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn:disabled { opacity: .55; cursor: default; }
+
+/* filter chips */
+.filter-btn {
+  padding: .25rem .6rem; border-radius: .4rem; font-size: .72rem;
+  background: #f1f5f9; color: #334155; border: 1px solid var(--border); cursor: pointer;
+}
+.filter-btn:hover { background: #e2e8f0; }
+.filter-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* form inputs */
+.field {
+  background: #fff; border: 1px solid #cbd5e1; border-radius: .4rem;
+  padding: .35rem .55rem; font-size: .8rem; color: var(--ink);
+}
+.field:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-tint); }
+
+/* small inline pill (chip) */
+.chip { display: inline-block; padding: .05rem .35rem; border-radius: .35rem; font-size: 10px; font-weight: 600; }
+
+/* status pill badges — leading dot is drawn in CSS (font-independent, no glyphs) */
+.badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .12rem .55rem; border-radius: 9999px;
+  font-size: .72rem; font-weight: 600; white-space: nowrap;
+}
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 9999px; background: currentColor; }
+.badge-alert { background: #fef2f2; color: #dc2626; }
+.badge-known { background: #eff6ff; color: #2563eb; }
+.badge-safe  { background: #f0fdf4; color: #16a34a; }
+.badge-zone  { background: #fffbeb; color: #d97706; }
+.badge-seen  { background: #f3f4f6; color: #6b7280; }
+
+/* rssi / time bars — color comes from the bg-* class supplied in JS */
+.bar { display: inline-block; height: 6px; border-radius: 3px; vertical-align: middle; }

@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.claude/
+.idea/
+*.swp
+*.swo
+
+# Project files
+*.kismet
+*.kismet-journal
+
+# SQLite store — runtime data, lives in the docker volume, never in git
+*.db
+*.db-wal
+*.db-shm
+
+# Tooling caches
+.mypy_cache/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Local development
+.env
+.env.local
+
+# Private local configuration and runtime data
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.db-*
+*.sqlite*
+*.log
+*.key
+*.pem
+*.crt
+local-data/
+storage/
+mosquitto/data/
+mosquitto/log/
+frigate-ollama-realtime/work/
+frigate-ollama-realtime/out/

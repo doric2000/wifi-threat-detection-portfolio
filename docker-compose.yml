@@ -1,0 +1,30 @@
+services:
+  kismet:
+    build: ./docker/kismet
+    network_mode: host
+    privileged: true # Linux monitor-mode radio access; authorized lab only.
+    devices:
+      - /dev/rfkill:/dev/rfkill
+    environment:
+      KISMET_USER: ${KISMET_USER:?Set KISMET_USER in .env}
+      KISMET_PASSWORD: ${KISMET_PASSWORD:?Set KISMET_PASSWORD in .env}
+    command: ["--no-ncurses-wrapper", "-c", "${CAPTURE_INTERFACE:-wlan0}:name=lab-capture"]
+    restart: unless-stopped
+  analyzer:
+    build:
+      context: .
+      dockerfile: docker/analyzer/Dockerfile
+    network_mode: host
+    environment:
+      ANALYZER_DATA_DIR: /data
+      KISMET_HOST: http://127.0.0.1:2501
+      KISMET_USER: ${KISMET_USER:?Set KISMET_USER in .env}
+      KISMET_PASSWORD: ${KISMET_PASSWORD:?Set KISMET_PASSWORD in .env}
+      OFFICE_SSIDS: ${OFFICE_SSIDS:-Demo-Lab}
+      UI_HOST: ${UI_HOST:-127.0.0.1}
+    volumes:
+      - analyzer-data:/data
+    depends_on: [kismet]
+    restart: unless-stopped
+volumes:
+  analyzer-data:
